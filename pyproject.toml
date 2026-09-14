@@ -1,0 +1,119 @@
+[project]
+name = "horarium"
+version = "0.1.0"
+description = "Graph neural networks and reinforcement learning for curriculum-based course timetabling."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "networkx>=3.2",
+    "numpy>=1.26",
+    # `linear_sum_assignment` is the stage-2 room oracle's Hungarian solver; `scipy.stats`
+    # supplies the Friedman/Wilcoxon tests the encoder comparison is reported with.
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+rl = [
+    "gymnasium>=0.29",
+    # Upper bound is deliberate: torch 2.12+ is built against CUDA 13, which this machine's
+    # 12.8 driver cannot load. See [tool.uv.sources] below.
+    "torch>=2.8,<2.12",
+]
+dev = [
+    "pytest>=8.0",
+    "mypy>=1.11",
+    "ruff>=0.6",
+    "types-networkx>=3.2",
+]
+report = [
+    "matplotlib>=3.8",
+]
+
+# This machine runs CUDA 12.8 (driver 570.124.06) and cannot go higher. PyPI's default torch
+# wheel is built against CUDA 13; it installs cleanly, then reports `cuda.is_available() == False`
+# with only a warning, so the failure is silent. Everything CUDA-dependent is therefore resolved
+# from PyTorch's cu128 channel, where every wheel and every bundled nvidia-*-cu12 runtime matches
+# the driver. Add future CUDA-linked packages (torch-geometric extensions, torchvision, ...) to
+# `tool.uv.sources` the same way rather than letting them resolve from PyPI.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/horarium"]
+
+# ----------------------------------------------------------------------------- ruff
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "A",    # builtin shadowing
+    "ANN",  # missing type annotations
+    "ARG",  # unused arguments
+    "B",    # bugbears
+    "BLE",  # blind `except Exception`
+    "C4",   # comprehensions
+    "D",    # docstrings
+    "E",    # pycodestyle errors (E722 = bare except)
+    "F",    # pyflakes
+    "I",    # import order
+    "N",    # naming
+    "PL",   # pylint subset
+    "PTH",  # use pathlib
+    "RET",  # return simplification
+    "RUF",
+    "S",    # bandit subset
+    "SIM",
+    "UP",   # pyupgrade
+    "W",
+]
+ignore = [
+    "D203",  # conflicts with D211
+    "D213",  # conflicts with D212
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Feature extractors share one signature per block by design, so most ignore some arguments.
+"src/horarium/graph/features.py" = ["ARG005"]
+"tests/*" = [
+    "D100", "D103",  # test modules and test functions need no docstring
+    "S101",          # assert is the point of a test
+    "ANN201",        # test functions return None, obviously
+    "PLR2004",       # magic values are fine in assertions
+]
+
+# ----------------------------------------------------------------------------- mypy
+
+[tool.mypy]
+# The package targets 3.11+, but numpy ships 3.12-only stub syntax, so type-check against the
+# interpreter `make setup` actually installs.
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["src"]
+
+# matplotlib is an optional (`report` extra) dependency and ships no complete stubs.
+[[tool.mypy.overrides]]
+module = ["matplotlib.*"]
+ignore_missing_imports = true
+
+# ----------------------------------------------------------------------------- pytest
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
