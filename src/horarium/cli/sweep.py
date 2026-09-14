@@ -156,7 +156,9 @@ def _baseline_record(
         return replace(record, solve_status="no room assignment", error=str(failure)[:200])
 
     breakdown = cost(instance, solution, formulation)
-    destination = args.checkpoints / f"{instance_path.stem}-{args.formulation}-{arm}-seed{seed}.sol"
+    destination = (
+        args.checkpoints / f"{instance_path.stem}-{args.formulation}-{arm}-seed{seed}.sol"
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     write_solution(instance, solution, destination)
     return replace(

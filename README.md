@@ -34,29 +34,12 @@ if no attempt is feasible.
 The encoder sweep and its report:
 
 ```bash
-python -m horarium.cli.sweep --device cuda --seed 0 --total-steps 100000   # -> experiments/runs.jsonl
+python -m horarium.cli.sweep --device cuda --seed 0                        # -> experiments/runs.jsonl
 python -m horarium.cli.watch                                               # live progress bar
 python -m horarium.cli.report                                              # -> docs/encoder_comparison.md + figures
 ```
 
-## CUDA
-
-**This machine runs CUDA 12.8 (driver 570.124.06) and cannot go higher.** PyPI's default torch
-wheel is built against CUDA 13: it installs without complaint, then reports
-`cuda.is_available() == False` behind a single warning, so the GPU is lost silently.
-`pyproject.toml` therefore resolves torch from PyTorch's **cu128** channel and caps it below
-2.12, and every bundled `nvidia-*-cu12` runtime matches the driver. Add any future
-CUDA-linked dependency (torch-geometric's compiled extensions, torchvision, …) to
-`[tool.uv.sources]` the same way rather than letting it resolve from PyPI.
-
-Two guards keep the mistake from recurring: `python -m horarium.cli.doctor` prints the
-torch/CUDA/driver versions and fails when a driver is present but unusable, and
-`resolve_device` refuses to quietly hand back a CPU when CUDA was asked for.
-
-If the venv ever mixes CUDA runtimes — `uv pip list | grep cu13` returns anything — rebuild it
-with `scripts/setup.sh --rebuild`; replacing torch alone leaves the old runtime behind.
-
-## Layout
+## Project structure
 
 ```text
 external/validator/   vendored validator.cc — ground truth for the UD1–UD5 cost functions
@@ -74,7 +57,7 @@ data/raw/             instances, fetched by `python -m horarium.cli.prepare` (no
 
 `problem/` imports neither torch nor any IO module, enforced by `tests/test_purity.py`.
 
-## Things the data taught us
+## Findings
 
 - **`ROOM_CONSTRAINTS` lists rooms a course may *not* use.** `Instance.forbidden_rooms` holds
   them as written; `Instance.permitted_rooms` is the complement, materialised for masking.
